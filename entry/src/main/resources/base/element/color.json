@@ -1,0 +1,28 @@
+{
+  "color": [
+    { "name": "start_window_background", "value": "#FFFFFF" },
+
+    { "name": "page_bg", "value": "#F5F7FA" },
+    { "name": "card_bg", "value": "#FFFFFF" },
+    { "name": "input_bg", "value": "#F5F5F5" },
+    { "name": "dropdown_bg", "value": "#EEF4FF" },
+    { "name": "dropdown_text", "value": "#1F5EA8" },
+    { "name": "border", "value": "#E2E8F0" },
+    { "name": "shadow", "value": "#00000018" },
+    { "name": "scrim", "value": "#80000000" },
+    { "name": "scrim_light", "value": "#22000000" },
+
+    { "name": "text_primary", "value": "#1F2937" },
+    { "name": "text_secondary", "value": "#6B7280" },
+    { "name": "text_hint", "value": "#9CA3AF" },
+    { "name": "text_error", "value": "#E23B3B" },
+
+    { "name": "btn_primary_bg", "value": "#007DFF" },
+    { "name": "btn_primary_text", "value": "#FFFFFF" },
+    { "name": "btn_secondary_bg", "value": "#E0E0E0" },
+    { "name": "btn_secondary_text", "value": "#333333" },
+    { "name": "btn_download_bg", "value": "#0E8F78" },
+    { "name": "btn_download_text", "value": "#FFFFFF" },
+    { "name": "btn_danger_bg", "value": "#F75353" }
+  ]
+}

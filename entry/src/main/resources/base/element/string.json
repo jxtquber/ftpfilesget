@@ -1,0 +1,24 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "FTPS文件浏览器"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "FTPS文件浏览器"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "FTPS Client"
+    },
+    {
+      "name": "internet_permission_reason",
+      "value": "需要网络权限以连接FTPS服务器"
+    },
+    {
+      "name": "file_access_persist_permission_reason",
+      "value": "需要保留文件读取权限以打开已保存的文件"
+    }
+  ]
+}

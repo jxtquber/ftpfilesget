@@ -1,0 +1,18 @@
+/node_modules
+/oh_modules
+/.preview
+/build
+/.hvigor
+/entry/build
+/.cxx
+/.test
+*.har
+*.hsp
+*.hap
+.idea
+local.properties
+
+# 签名配置含个人开发机路径与加密后的密钥，不应入库
+# 首次构建时复制 build-profile.template.json5 为 build-profile.json5 并填入自己的签名信息
+/build-profile.json5
+/entry/build-profile.json5
