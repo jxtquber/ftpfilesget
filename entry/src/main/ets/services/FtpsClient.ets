@@ -655,6 +655,7 @@ export class FtpsClient {
     this.dataSocket = null;
     this.responseBuffer = '';
     if (this.readPromise !== null) {
+      this.readPromise.reject(new Error('连接已关闭'));
       clearTimeout(this.readPromise.timer);
       this.readPromise = null;
     }

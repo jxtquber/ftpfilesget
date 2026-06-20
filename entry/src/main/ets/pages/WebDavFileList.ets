@@ -1,7 +1,7 @@
 import { promptAction, router } from '@kit.ArkUI';
 import { common, wantConstant } from '@kit.AbilityKit';
 import { fileIo, fileShare, fileUri, picker } from '@kit.CoreFileKit';
-import { FtpsClient, DownloadCallbacks } from '../services/FtpsClient';
+import { WebDavClient, WebDavDownloadCallbacks } from '../services/WebDavClient';
 import {
   FileInfo,
   formatFileSize,
@@ -15,7 +15,7 @@ import {
 
 @Entry
 @Component
-struct FileList {
+struct WebDavFileList {
   @State files: FileInfo[] = [];
   @State isLoading: boolean = false;
   @State currentPath: string = '/';
@@ -27,16 +27,18 @@ struct FileList {
   @State showExitDialog: boolean = false;
   @State loadingPath: string = '';
 
-  private ftpsClient: FtpsClient = new FtpsClient();
+  private webDavClient: WebDavClient = new WebDavClient();
   private serverAddress: string = '';
-  private serverPort: number = 21;
+  private serverPort: number = 5006;
+  private basePath: string = '/';
   private username: string = '';
   private password: string = '';
 
   aboutToAppear() {
     const params = router.getParams() as Record<string, string>;
     this.serverAddress = params['serverAddress'] || '';
-    this.serverPort = parseInt(params['serverPort'] || '21', 10);
+    this.serverPort = parseInt(params['serverPort'] || '5006', 10);
+    this.basePath = params['basePath'] || '/';
     this.username = params['username'] || '';
     this.password = params['password'] || '';
     this.connectAndLoadFiles();
@@ -44,13 +46,12 @@ struct FileList {
 
   onBackPress(): boolean {
     if (this.downloadingFile.length > 0) return true;
-    // 与左上「返回」按钮一致：非根目录返回上级，根目录弹退出确认
     this.goBackOrExit();
     return true;
   }
 
-  async aboutToDisappear() {
-    await this.ftpsClient.disconnect();
+  aboutToDisappear(): void {
+    this.webDavClient.disconnect();
   }
 
   private isBusy(): boolean {
@@ -278,17 +279,17 @@ struct FileList {
     }
   }
 
-  private async confirmExit(): Promise<void> {
+  private confirmExit(): void {
     this.showExitDialog = false;
-    await this.ftpsClient.disconnect();
+    this.webDavClient.disconnect();
     router.clear();
     const ctx = getContext(this) as common.UIAbilityContext;
     ctx.terminateSelf();
   }
 
-  private async logout(): Promise<void> {
+  private logout(): void {
     if (this.isBusy()) return;
-    await this.ftpsClient.disconnect();
+    this.webDavClient.disconnect();
     router.clear();
     router.replaceUrl({ url: 'pages/Main' });
   }
@@ -299,8 +300,8 @@ struct FileList {
     this.loadingPath = '/';
     this.errorMessage = '';
     try {
-      await this.ftpsClient.connect(this.serverAddress, this.serverPort, this.username, this.password);
-      this.files = await this.ftpsClient.listFiles('/');
+      this.webDavClient.connect(this.serverAddress, this.serverPort, this.basePath, this.username, this.password);
+      this.files = await this.webDavClient.listFiles('/');
       this.currentPath = '/';
     } catch (error) {
       this.errorMessage = this.toMessage(error, '连接失败');
@@ -316,29 +317,21 @@ struct FileList {
     this.loadingPath = path;
     this.errorMessage = '';
     try {
-      if (!this.ftpsClient.isConnected()) {
-        await this.reconnectControl();
-      }
-      this.files = await this.ftpsClient.listFiles(path);
+      this.ensureConnected();
+      this.files = await this.webDavClient.listFiles(path);
       this.currentPath = path;
     } catch (error) {
-      try {
-        await this.reconnectControl();
-        this.files = await this.ftpsClient.listFiles(path);
-        this.currentPath = path;
-      } catch (retryError) {
-        this.errorMessage = this.toMessage(retryError, '加载失败');
-      }
+      this.errorMessage = this.toMessage(error, '加载失败');
     } finally {
       this.isLoading = false;
       this.loadingPath = '';
     }
   }
 
-  private async reconnectControl(): Promise<void> {
-    await this.ftpsClient.disconnect();
-    this.ftpsClient = new FtpsClient();
-    await this.ftpsClient.connect(this.serverAddress, this.serverPort, this.username, this.password);
+  private ensureConnected(): void {
+    if (!this.webDavClient.isConnected()) {
+      this.webDavClient.connect(this.serverAddress, this.serverPort, this.basePath, this.username, this.password);
+    }
   }
 
   async refreshFiles() {
@@ -348,8 +341,8 @@ struct FileList {
     this.loadingPath = targetPath;
     this.errorMessage = '';
     try {
-      await this.reconnectControl();
-      this.files = await this.ftpsClient.listFiles(targetPath);
+      this.webDavClient.connect(this.serverAddress, this.serverPort, this.basePath, this.username, this.password);
+      this.files = await this.webDavClient.listFiles(targetPath);
       this.currentPath = targetPath;
     } catch (error) {
       this.errorMessage = this.toMessage(error, '刷新失败');
@@ -361,8 +354,12 @@ struct FileList {
 
   navigateUp() {
     let parentPath = '/';
-    const lastSlash = this.currentPath.lastIndexOf('/');
-    if (lastSlash > 0) parentPath = this.currentPath.substring(0, lastSlash);
+    let path = this.currentPath;
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
+    }
+    const lastSlash = path.lastIndexOf('/');
+    if (lastSlash > 0) parentPath = path.substring(0, lastSlash + 1);
     this.loadFiles(parentPath);
   }
 
@@ -388,7 +385,7 @@ struct FileList {
 
   private async getOpenCacheUri(fileName: string): Promise<string> {
     const ctx = getContext(this) as common.UIAbilityContext;
-    const dirPath = ctx.cacheDir + '/ftps_open';
+    const dirPath = ctx.cacheDir + '/webdav_open';
     try {
       await fileIo.mkdir(dirPath);
     } catch (_) {}
@@ -476,7 +473,7 @@ struct FileList {
     return prefix;
   }
 
-  private makeDownloadCallbacks(): DownloadCallbacks {
+  private makeDownloadCallbacks(): WebDavDownloadCallbacks {
     return {
       onProgress: (received: number, total: number) => {
         if (total > 0) {
@@ -517,12 +514,13 @@ struct FileList {
         return;
       }
       this.beginTransfer(file.name, '下载');
-      await this.ftpsClient.downloadFile(file.path, saveUri, this.makeDownloadCallbacks());
+      this.ensureConnected();
+      await this.webDavClient.downloadFile(file.path, saveUri, this.makeDownloadCallbacks());
       this.downloadProgress = 100;
       this.errorMessage = '';
       promptAction.showToast({ message: '下载完成', duration: 2000 });
     } catch (error) {
-      await this.reconnectAfterTransferError();
+      this.webDavClient.disconnect();
       this.errorMessage = this.toMessage(error, '下载失败');
     } finally {
       this.endTransfer();
@@ -536,26 +534,19 @@ struct FileList {
       const fileName = this.sanitizeFileName(file.name);
       const saveUri = await this.getOpenCacheUri(fileName);
       this.beginTransfer(file.name, '打开');
-      await this.ftpsClient.downloadFile(file.path, saveUri, this.makeDownloadCallbacks());
+      this.ensureConnected();
+      await this.webDavClient.downloadFile(file.path, saveUri, this.makeDownloadCallbacks());
       isSaved = true;
       this.downloadProgress = 100;
       this.errorMessage = '';
       await this.openSavedFile(saveUri, file.name);
     } catch (error) {
       if (!isSaved) {
-        await this.reconnectAfterTransferError();
+        this.webDavClient.disconnect();
       }
       this.errorMessage = this.toMessage(error, '打开失败');
     } finally {
       this.endTransfer();
-    }
-  }
-
-  private async reconnectAfterTransferError(): Promise<void> {
-    try {
-      await this.reconnectControl();
-    } catch (reconnectError) {
-      console.warn('下载失败后重连失败: ' + (reconnectError instanceof Error ? reconnectError.message : '未知错误'));
     }
   }
 }

@@ -1,6 +1,8 @@
 {
   "src": [
+    "pages/Main",
     "pages/Index",
-    "pages/FileList"
+    "pages/FileList",
+    "pages/WebDavFileList"
   ]
 }

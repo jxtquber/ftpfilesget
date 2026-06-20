@@ -7,6 +7,7 @@ const DEFAULT_ADDRESS = '192.168.1.101';
 const DEFAULT_PORT = '21';
 const DEFAULT_USERNAME = 'ftpuser';
 const DEFAULT_PASSWORD = 'jxt19851009';
+const OLD_DEFAULT_USERNAME = 'jxtquber';
 
 @Entry
 @Component
@@ -38,9 +39,15 @@ struct Index {
       const user = await store.get('username', DEFAULT_USERNAME);
       this.serverAddress = typeof addr === 'string' ? addr : DEFAULT_ADDRESS;
       this.serverPort = typeof port === 'string' ? port : DEFAULT_PORT;
-      this.username = typeof user === 'string' ? user : DEFAULT_USERNAME;
+      this.username = this.normalizeUsername(user);
       this.password = DEFAULT_PASSWORD;
     } catch (_) {}
+  }
+
+  private normalizeUsername(value: preferences.ValueType): string {
+    if (typeof value !== 'string') return DEFAULT_USERNAME;
+    if (value.length === 0 || value === OLD_DEFAULT_USERNAME) return DEFAULT_USERNAME;
+    return value;
   }
 
   private async saveConfig(): Promise<void> {
