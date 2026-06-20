@@ -13,12 +13,16 @@ import {
   getFileExtension
 } from '../models/FileInfo';
 
+const PAGE_SIZE = 30;
+
 @Entry
 @Component
 struct WebDavFileList {
   @State files: FileInfo[] = [];
+  @State allFiles: FileInfo[] = [];
   @State isLoading: boolean = false;
   @State currentPath: string = '/';
+  @State currentPage: number = 0;
   @State errorMessage: string = '';
   @State downloadingFile: string = '';
   @State downloadProgress: number = 0;
@@ -184,6 +188,10 @@ struct WebDavFileList {
           .layoutWeight(1).width('100%').backgroundColor($r('app.color.page_bg'))
         }
 
+        if (this.allFiles.length > PAGE_SIZE) {
+          this.paginationBar()
+        }
+
         if (this.downloadingFile.length > 0) {
           Column() {
             Text('正在' + this.transferActionLabel + ': ' + this.downloadingFile)
@@ -209,6 +217,39 @@ struct WebDavFileList {
         this.loadingOverlay()
       }
     }
+  }
+
+  @Builder
+  paginationBar() {
+    Row() {
+      Button('<')
+        .onClick(() => { this.prevPage(); })
+        .width(54).height(34).fontSize(18)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.btn_secondary_bg'))
+        .fontColor($r('app.color.btn_secondary_text'))
+        .opacity(this.currentPage > 0 && !this.isBusy() ? 0.55 : 0.25)
+        .enabled(this.currentPage > 0 && !this.isBusy())
+
+      Text((this.currentPage + 1).toString() + ' / ' + this.totalPages().toString())
+        .fontSize(12)
+        .fontColor($r('app.color.text_secondary'))
+
+      Button('>')
+        .onClick(() => { this.nextPage(); })
+        .width(54).height(34).fontSize(18)
+        .borderRadius(8)
+        .backgroundColor($r('app.color.btn_secondary_bg'))
+        .fontColor($r('app.color.btn_secondary_text'))
+        .opacity(this.currentPage < this.totalPages() - 1 && !this.isBusy() ? 0.55 : 0.25)
+        .enabled(this.currentPage < this.totalPages() - 1 && !this.isBusy())
+    }
+    .width('100%')
+    .height(46)
+    .padding({ left: 12, right: 12 })
+    .justifyContent(FlexAlign.SpaceBetween)
+    .alignItems(VerticalAlign.Center)
+    .backgroundColor($r('app.color.page_bg'))
   }
 
   @Builder
@@ -301,7 +342,9 @@ struct WebDavFileList {
     this.errorMessage = '';
     try {
       this.webDavClient.connect(this.serverAddress, this.serverPort, this.basePath, this.username, this.password);
-      this.files = await this.webDavClient.listFiles('/');
+      this.allFiles = await this.webDavClient.listFiles('/');
+      this.currentPage = 0;
+      this.updatePagedFiles();
       this.currentPath = '/';
     } catch (error) {
       this.errorMessage = this.toMessage(error, '连接失败');
@@ -318,7 +361,9 @@ struct WebDavFileList {
     this.errorMessage = '';
     try {
       this.ensureConnected();
-      this.files = await this.webDavClient.listFiles(path);
+      this.allFiles = await this.webDavClient.listFiles(path);
+      this.currentPage = 0;
+      this.updatePagedFiles();
       this.currentPath = path;
     } catch (error) {
       this.errorMessage = this.toMessage(error, '加载失败');
@@ -342,7 +387,9 @@ struct WebDavFileList {
     this.errorMessage = '';
     try {
       this.webDavClient.connect(this.serverAddress, this.serverPort, this.basePath, this.username, this.password);
-      this.files = await this.webDavClient.listFiles(targetPath);
+      this.allFiles = await this.webDavClient.listFiles(targetPath);
+      this.currentPage = 0;
+      this.updatePagedFiles();
       this.currentPath = targetPath;
     } catch (error) {
       this.errorMessage = this.toMessage(error, '刷新失败');
@@ -361,6 +408,30 @@ struct WebDavFileList {
     const lastSlash = path.lastIndexOf('/');
     if (lastSlash > 0) parentPath = path.substring(0, lastSlash + 1);
     this.loadFiles(parentPath);
+  }
+
+  private totalPages(): number {
+    return Math.max(1, Math.ceil(this.allFiles.length / PAGE_SIZE));
+  }
+
+  private updatePagedFiles(): void {
+    const total = this.totalPages();
+    if (this.currentPage >= total) this.currentPage = total - 1;
+    if (this.currentPage < 0) this.currentPage = 0;
+    const start = this.currentPage * PAGE_SIZE;
+    this.files = this.allFiles.slice(start, start + PAGE_SIZE);
+  }
+
+  private prevPage(): void {
+    if (this.isBusy() || this.currentPage <= 0) return;
+    this.currentPage--;
+    this.updatePagedFiles();
+  }
+
+  private nextPage(): void {
+    if (this.isBusy() || this.currentPage >= this.totalPages() - 1) return;
+    this.currentPage++;
+    this.updatePagedFiles();
   }
 
   private sanitizeFileName(name: string): string {

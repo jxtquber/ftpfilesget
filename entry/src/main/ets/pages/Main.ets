@@ -140,7 +140,7 @@ struct Main {
         .margin({ bottom: 28 })
 
       Column() {
-        this.addressInputRow('IP地址', this.ftpsAddress, this.showFtpsAddressDropdown, true)
+        this.addressInputRow('IP地址', this.ftpsAddress, true)
         this.portInputRow('端口号', '端口 (默认21 显式FTPS)', this.ftpsPort, true)
         this.usernameInputRow('用户名', this.ftpsUsername, true)
         this.passwordInputRow('密码', this.ftpsPassword, true)
@@ -185,7 +185,7 @@ struct Main {
         .margin({ bottom: 28 })
 
       Column() {
-        this.addressInputRow('IP地址', this.webDavAddress, this.showWebDavAddressDropdown, false)
+        this.addressInputRow('IP地址', this.webDavAddress, false)
         this.portInputRow('端口号', '端口 (默认5006 HTTPS)', this.webDavPort, false)
         this.webDavPathInputRow()
         this.usernameInputRow('用户名', this.webDavUsername, false)
@@ -228,7 +228,7 @@ struct Main {
   }
 
   @Builder
-  addressInputRow(label: string, value: string, showDropdown: boolean, isFtps: boolean) {
+  addressInputRow(label: string, value: string, isFtps: boolean) {
     Column() {
       Row() {
         Text(label)
@@ -236,7 +236,7 @@ struct Main {
           .width(76).textAlign(TextAlign.Start)
         Column() {
           Row() {
-            TextInput({ placeholder: '服务器地址', text: value })
+            TextInput({ placeholder: '服务器地址', text: isFtps ? this.ftpsAddress : this.webDavAddress })
               .onChange((v: string) => {
                 if (isFtps) {
                   this.ftpsAddress = v;
@@ -245,7 +245,7 @@ struct Main {
                 }
               })
               .height(50).layoutWeight(1).borderRadius(8).backgroundColor($r('app.color.input_bg'))
-            Button(showDropdown ? '▲' : '▼')
+            Button((isFtps ? this.showFtpsAddressDropdown : this.showWebDavAddressDropdown) ? '∧' : '∨')
               .onClick(() => {
                 if (isFtps) {
                   this.showFtpsAddressDropdown = !this.showFtpsAddressDropdown;
@@ -256,21 +256,23 @@ struct Main {
               .height(50).width(48)
               .backgroundColor($r('app.color.input_bg'))
               .fontColor($r('app.color.text_primary'))
-              .fontSize(18)
+              .fontSize(22)
           }
           .width('100%')
           .height(50)
           .backgroundColor($r('app.color.input_bg'))
           .borderRadius(8)
-          .border({ width: 1, color: showDropdown ? $r('app.color.btn_primary_bg') : $r('app.color.border') })
+          .border({ width: 1, color: (isFtps ? this.showFtpsAddressDropdown : this.showWebDavAddressDropdown) ? $r('app.color.btn_primary_bg') : $r('app.color.border') })
 
-          if (showDropdown) {
-            Column() {
+          if (isFtps ? this.showFtpsAddressDropdown : this.showWebDavAddressDropdown) {
+            Column({ space: 6 }) {
               this.addressOption('192.168.1.101', isFtps)
               this.addressOption('juneinter.site', isFtps)
             }
             .width('100%')
-            .padding({ top: 8 })
+            .padding({ top: 8, bottom: 8 })
+            .backgroundColor($r('app.color.card_bg'))
+            .borderRadius(8)
           }
         }
         .layoutWeight(1)
@@ -285,16 +287,31 @@ struct Main {
     Button(address)
       .onClick(() => {
         if (isFtps) {
-          this.ftpsAddress = address;
-          this.showFtpsAddressDropdown = false;
+          this.selectFtpsAddress(address);
         } else {
-          this.webDavAddress = address;
-          this.showWebDavAddressDropdown = false;
+          this.selectWebDavAddress(address);
         }
       })
-      .width('100%').height(38).margin({ top: 6 })
+      .width('100%').height(40)
       .backgroundColor($r('app.color.dropdown_bg'))
       .fontColor($r('app.color.dropdown_text'))
+  }
+
+  private selectFtpsAddress(address: string): void {
+    this.ftpsAddress = address;
+    this.ftpsPort = DEFAULT_FTPS_PORT;
+    this.ftpsUsername = DEFAULT_USERNAME;
+    this.ftpsPassword = DEFAULT_PASSWORD;
+    this.showFtpsAddressDropdown = false;
+  }
+
+  private selectWebDavAddress(address: string): void {
+    this.webDavAddress = address;
+    this.webDavPort = DEFAULT_WEBDAV_PORT;
+    this.webDavPath = DEFAULT_WEBDAV_PATH;
+    this.webDavUsername = DEFAULT_USERNAME;
+    this.webDavPassword = DEFAULT_PASSWORD;
+    this.showWebDavAddressDropdown = false;
   }
 
   @Builder
